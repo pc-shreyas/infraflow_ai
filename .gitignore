@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+
+# Cache directories
+.cache/
+.turbopack/
+.eslintcache
+.stylelintcache
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# MongoDB Memory Server cache
+.mongodb-memory-server/
+mongodb-memory-server/
+
+# Jest coverage
+coverage/
+.nyc_output/
+
+# NextJS specific
+.next/
+out/
+
+# Production builds
+build/
+dist/
+
+# Testing
+.jest/
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
