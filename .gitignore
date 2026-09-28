@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+client/node_modules/
+server/node_modules/
 
 yarn.lock
 pnpm-lock.yaml
@@ -8,6 +10,7 @@ pnpm-lock.yaml
 dist/
 build/
 .next/
+client/.next/
 out/
 
 # Cache directories
