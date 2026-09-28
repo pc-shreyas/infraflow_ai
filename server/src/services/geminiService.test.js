@@ -1,6 +1,13 @@
-// Tests for Gemini Service - Integration tests
-// Note: These tests verify the service structure and error handling
-// without requiring a real Gemini API key
+// Tests for Gemini Service - Unit & Integration tests
+// Mock the @google/genai module so tests never make real API calls
+const mockGenerateContent = jest.fn();
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: {
+      generateContent: mockGenerateContent,
+    },
+  })),
+}));
 
 describe('Gemini Service - Structure and Error Handling', () => {
   let geminiService;
@@ -8,6 +15,7 @@ describe('Gemini Service - Structure and Error Handling', () => {
   beforeEach(() => {
     // Fresh require for each test
     jest.resetModules();
+    jest.clearAllMocks();
     geminiService = require('./geminiService');
   });
 
@@ -23,18 +31,32 @@ describe('Gemini Service - Structure and Error Handling', () => {
 
   describe('generateText error handling', () => {
     it('should be an async function', async () => {
-      expect(geminiService.generateText()).toBeInstanceOf(Promise);
+      mockGenerateContent.mockResolvedValue({ text: 'sample output' });
+      expect(geminiService.generateText('test')).toBeInstanceOf(Promise);
     });
 
     it('should handle missing API key error gracefully', async () => {
-      // When GEMINI_API_KEY is not properly configured
+      const env = require('../config/env');
+      const originalKey = env.GEMINI_API_KEY;
+      env.GEMINI_API_KEY = '';
+
       try {
-        // This will fail if API key is not in environment
-        // That's expected behavior for this test
         await geminiService.generateText('test');
       } catch (error) {
         expect(error.message).toContain('Gemini API error');
+      } finally {
+        env.GEMINI_API_KEY = originalKey;
       }
+    });
+
+    it('should handle SDK errors gracefully', async () => {
+      mockGenerateContent.mockRejectedValue(new Error('Quota exceeded'));
+      await expect(geminiService.generateText('test')).rejects.toThrow('Gemini API error: Quota exceeded');
+    });
+
+    it('should handle empty response text gracefully', async () => {
+      mockGenerateContent.mockResolvedValue({});
+      await expect(geminiService.generateText('test')).rejects.toThrow('Gemini API error: No text content in response');
     });
   });
 
@@ -71,5 +93,6 @@ describe('Gemini Service - Structure and Error Handling', () => {
     });
   });
 });
+
 
 

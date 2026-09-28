@@ -3,14 +3,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { ReactFlowProvider, applyNodeChanges, applyEdgeChanges, addEdge } from '@xyflow/react';
-import { GitBranch, Save, Play, ChevronLeft, AlertCircle, Sparkles } from 'lucide-react';
+import { GitBranch, Save, Play, ChevronLeft, AlertCircle, Sparkles, Terminal } from 'lucide-react';
 import AuthGuard from '../../components/ProtectedRoute/AuthGuard';
 import AppShellHeader from '../../components/AppShell/Header';
 import AppShellSidebar from '../../components/AppShell/Sidebar';
 import Canvas from '../../components/WorkflowCanvas/Canvas';
 import NodePalette from '../../components/WorkflowCanvas/NodePalette';
 import NodeConfigPanel from '../../components/WorkflowCanvas/NodeConfigPanel';
+import BottomTerminalTray from '../../components/Terminal/BottomTerminalTray';
 import useWorkflowStore from '../../store/workflowStore';
+import api from '../../services/api';
 
 function WorkflowWorkspaceContent() {
   const router = useRouter();
@@ -24,6 +26,8 @@ function WorkflowWorkspaceContent() {
   const [workflowDesc, setWorkflowDesc] = useState('');
   const [workflowStatus, setWorkflowStatus] = useState('draft');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [activeExecutionId, setActiveExecutionId] = useState(null);
+  const [isDeploying, setIsDeploying] = useState(false);
 
   // Load workflow details
   useEffect(() => {
@@ -117,18 +121,24 @@ function WorkflowWorkspaceContent() {
     }
   };
 
-  // Dispatch execution orchestrator (built in Phase 4)
+  // Dispatch execution orchestrator and stream in bottom tray
   const handleExecute = async () => {
+    if (isDeploying) return;
+    setIsDeploying(true);
+
     // Save current graph first
     await handleSave();
-    // Navigate to execution view or hit route.
+
     try {
-      const api = require('../../services/api').default;
       const res = await api.post(`/workflows/${id}/execute`);
-      const executionId = res.data.data.executionId;
-      router.push(`/executions/${executionId}`);
+      const executionId = res.data?.data?.executionId;
+      if (executionId) {
+        setActiveExecutionId(executionId);
+      }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to dispatch workflow execution.');
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -213,6 +223,18 @@ function WorkflowWorkspaceContent() {
 
           {/* Right: Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {activeExecutionId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => router.push(`/executions/${activeExecutionId}`)}
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
+              >
+                <Terminal size={14} color="var(--emerald-400)" />
+                Open Dedicated Stream
+              </button>
+            )}
+
             <select
               id="workspace-workflow-status-select"
               value={workflowStatus}
@@ -247,10 +269,11 @@ function WorkflowWorkspaceContent() {
               id="workspace-execute-workflow"
               className="btn btn-primary"
               onClick={handleExecute}
+              disabled={isDeploying || isLoading}
               style={{ fontSize: '0.8rem', padding: '0.45rem 0.875rem' }}
             >
               <Play size={14} fill="#fff" />
-              Deploy Graph
+              {isDeploying ? 'Dispatching…' : 'Deploy Graph'}
             </button>
           </div>
         </header>
@@ -278,6 +301,15 @@ function WorkflowWorkspaceContent() {
             onDeleteNode={onDeleteNode}
             onClose={() => setSelectedNodeId(null)}
           />
+
+          {/* Collapsible Bottom Live Stream Panel */}
+          {activeExecutionId && (
+            <BottomTerminalTray
+              executionId={activeExecutionId}
+              onClose={() => setActiveExecutionId(null)}
+              defaultExpanded={true}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -287,9 +319,13 @@ function WorkflowWorkspaceContent() {
 export default function WorkflowWorkspace() {
   return (
     <AuthGuard>
+      <Head>
+        <title>Visual Infrastructure Canvas — InfraFlow AI</title>
+      </Head>
       <ReactFlowProvider>
         <WorkflowWorkspaceContent />
       </ReactFlowProvider>
     </AuthGuard>
   );
 }
+

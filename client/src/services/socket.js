@@ -13,10 +13,22 @@ let socket = null;
  */
 export const getSocket = () => {
   if (!socket) {
+    let token = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('infraflow-auth');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          token = parsed?.state?.token || null;
+        }
+      } catch (_) {}
+    }
+
     const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
     socket = io(url, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
+      auth: { token },
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
     });

@@ -2,11 +2,15 @@ const integrationService = require('../services/integrationService');
 const githubDriver = require('../integrations/githubIntegration');
 const awsDriver = require('../integrations/awsIntegration');
 const dockerDriver = require('../integrations/dockerIntegration');
+const digitaloceanDriver = require('../integrations/digitaloceanIntegration');
+const vercelDriver = require('../integrations/vercelIntegration');
 
 const drivers = {
   github: githubDriver,
   aws: awsDriver,
-  docker: dockerDriver
+  docker: dockerDriver,
+  digitalocean: digitaloceanDriver,
+  vercel: vercelDriver,
 };
 
 exports.getIntegrations = async (req, res, next) => {

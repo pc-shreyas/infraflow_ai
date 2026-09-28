@@ -143,7 +143,7 @@ const Sidebar = () => {
             InfraFlow AI
           </span>
         </div>
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Phase 1 — v1.0.0</span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>v1.0.0 — Production Ready</span>
       </div>
     </aside>
   );

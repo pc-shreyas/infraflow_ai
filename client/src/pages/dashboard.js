@@ -9,42 +9,9 @@ import {
 import AuthGuard from '../components/ProtectedRoute/AuthGuard';
 import Header from '../components/AppShell/Header';
 import Sidebar from '../components/AppShell/Sidebar';
+import HealthCard from '../components/MetricGrid/HealthCard';
 import useAuthStore from '../store/authStore';
 import api from '../services/api';
-
-// ── Stat Card ───────────────────────────────────────────────────────────────
-const StatCard = ({ icon: Icon, label, value, sub, color = 'var(--emerald-400)', delay = 0 }) => (
-  <div
-    className="card animate-fade-in-up"
-    style={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '1rem',
-      animationDelay: `${delay}ms`,
-    }}
-  >
-    <div
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: 10,
-        background: `${color}18`,
-        border: `1px solid ${color}30`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <Icon size={20} color={color} strokeWidth={2} />
-    </div>
-    <div>
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-      <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1, marginTop: 2 }}>{value}</p>
-      {sub && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 3 }}>{sub}</p>}
-    </div>
-  </div>
-);
 
 // ── Quick Action Card ────────────────────────────────────────────────────────
 const QuickAction = ({ icon: Icon, title, desc, href, color = 'var(--emerald-400)', delay = 0 }) => (
@@ -99,20 +66,90 @@ export default function DashboardPage() {
   const [healthData, setHealthData] = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
 
+  const [metrics, setMetrics] = useState({
+    workflowsCount: 0,
+    executionsCount: 0,
+    successfulCount: 0,
+    successRate: '—',
+    integrationsCount: 0,
+  });
+  const [metricsLoading, setMetricsLoading] = useState(true);
+
   useEffect(() => {
-    const fetchHealth = async () => {
+    let active = true;
+
+    const fetchDashboardData = async () => {
       try {
-        const res = await api.get('/health');
-        setHealthData(res.data.data);
+        const [healthRes, workflowsRes, executionsRes, integrationsRes] = await Promise.allSettled([
+          api.get('/health'),
+          api.get('/workflows?limit=1'),
+          api.get('/executions?limit=50'),
+          api.get('/integrations'),
+        ]);
+
+        if (!active) return;
+
+        // Health check response
+        if (healthRes.status === 'fulfilled') {
+          setHealthData(healthRes.value.data?.data || { status: 'ok', dbMode: 'mongodb' });
+        } else {
+          setHealthData({ status: 'degraded', dbMode: 'unknown' });
+        }
+
+        // Workflows count
+        const workflowsTotal = workflowsRes.status === 'fulfilled'
+          ? (workflowsRes.value.data?.data?.total ?? (workflowsRes.value.data?.data?.workflows?.length || 0))
+          : 0;
+
+        // Executions count and success rate
+        let executionsTotal = 0;
+        let successfulRuns = 0;
+        let successRateStr = '—';
+
+        if (executionsRes.status === 'fulfilled') {
+          const execData = executionsRes.value.data?.data || {};
+          executionsTotal = execData.total ?? (execData.executions?.length || 0);
+          const executionList = execData.executions || [];
+          successfulRuns = executionList.filter((e) => e.status === 'COMPLETED').length;
+
+          if (executionsTotal > 0) {
+            const calculatedRate = Math.round((successfulRuns / (execData.executions?.length || executionsTotal)) * 100);
+            successRateStr = `${calculatedRate}%`;
+          }
+        }
+
+        // Integrations count
+        let integrationsTotal = 0;
+        if (integrationsRes.status === 'fulfilled') {
+          const intList = integrationsRes.value.data?.data || [];
+          integrationsTotal = Array.isArray(intList)
+            ? intList.filter((i) => i.isConnected).length
+            : 0;
+        }
+
+        setMetrics({
+          workflowsCount: workflowsTotal,
+          executionsCount: executionsTotal,
+          successfulCount: successfulRuns,
+          successRate: successRateStr,
+          integrationsCount: integrationsTotal,
+        });
       } catch (_) {
-        setHealthData({ status: 'degraded', dbMode: 'unknown' });
+        // Fallback gracefully
       } finally {
-        setHealthLoading(false);
+        if (active) {
+          setHealthLoading(false);
+          setMetricsLoading(false);
+        }
       }
     };
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 30000);
-    return () => clearInterval(interval);
+
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const agents = [
@@ -169,12 +206,44 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Stats row */}
+            {/* Metric / Health Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-              <StatCard icon={GitBranch} label="Workflows"    value="0"   sub="No workflows yet"        color="var(--emerald-400)" delay={50}  />
-              <StatCard icon={Play}      label="Executions"   value="0"   sub="No runs yet"             color="var(--cyan-400)"    delay={100} />
-              <StatCard icon={CheckCircle} label="Successful" value="—"   sub="Success rate"            color="var(--amber-400)"   delay={150} />
-              <StatCard icon={Plug}      label="Integrations" value="0"   sub="Providers connected"     color="#a78bfa"            delay={200} />
+              <HealthCard
+                icon={GitBranch}
+                label="Workflows"
+                value={metrics.workflowsCount}
+                sub={metrics.workflowsCount === 1 ? '1 active pipeline' : `${metrics.workflowsCount} active pipelines`}
+                color="var(--emerald-400)"
+                delay={50}
+                loading={metricsLoading}
+              />
+              <HealthCard
+                icon={Play}
+                label="Executions"
+                value={metrics.executionsCount}
+                sub={metrics.executionsCount === 1 ? '1 total run' : `${metrics.executionsCount} total runs`}
+                color="var(--cyan-400)"
+                delay={100}
+                loading={metricsLoading}
+              />
+              <HealthCard
+                icon={CheckCircle}
+                label="Success Rate"
+                value={metrics.successRate}
+                sub={metrics.executionsCount > 0 ? `${metrics.successfulCount} passed runs` : 'No runs recorded'}
+                color="var(--amber-400)"
+                delay={150}
+                loading={metricsLoading}
+              />
+              <HealthCard
+                icon={Plug}
+                label="Integrations"
+                value={metrics.integrationsCount}
+                sub={metrics.integrationsCount === 1 ? '1 provider connected' : `${metrics.integrationsCount} providers connected`}
+                color="#a78bfa"
+                delay={200}
+                loading={metricsLoading}
+              />
             </div>
 
             {/* Middle grid */}
@@ -182,7 +251,7 @@ export default function DashboardPage() {
 
               {/* Quick actions */}
               <div>
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
+                <h2 style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Quick Actions
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -199,7 +268,7 @@ export default function DashboardPage() {
                   5-Agent Engine Status
                 </h2>
                 <div className="card" style={{ padding: '1.25rem' }}>
-                  {agents.map((agent, i) => (
+                  {agents.map((agent) => (
                     <AgentRow key={agent.name} {...agent} />
                   ))}
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -251,3 +320,4 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+

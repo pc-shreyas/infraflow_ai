@@ -88,6 +88,7 @@ class Orchestrator {
               executionId,
               node: currentNode,
               context,
+              userId: execution.triggeredBy,
             });
 
             // ── VALIDATE ──

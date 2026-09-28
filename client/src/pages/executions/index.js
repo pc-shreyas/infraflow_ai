@@ -15,7 +15,7 @@ const statusLabel = (status) => {
 
 const statusClass = (status) => {
   if (status === 'COMPLETED') return 'badge-success';
-  if (['FAILED', 'CANCELLED'].includes(status)) return 'badge-danger';
+  if (['FAILED', 'CANCELLED'].includes(status)) return 'badge-error';
   return 'badge-warning';
 };
 
