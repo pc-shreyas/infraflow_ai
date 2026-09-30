@@ -2,6 +2,8 @@
 
 **InfraFlow AI** is an Agentic DevOps and Cloud Infrastructure Automation Platform. It turns natural-language requirements and visual node graphs into structured, executable, multi-cloud deployment pipelines orchestrated by a collaborative 5-agent AI team with real-time terminal streaming and automated self-healing.
 
+**Live Demo:** [https://infraflow-ai.vercel.app](https://infraflow-ai.vercel.app/)
+
 ---
 
 ## Table of Contents
@@ -267,9 +269,9 @@ CLIENT_URL=http://localhost:3000
 MONGO_URI=
 
 # Authentication & Security
-JWT_SECRET=infraflow_super_secret_jwt_key_change_in_production
+JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=7d
-CREDENTIAL_ENCRYPTION_KEY=infraflow_encryption_key_32chars!
+CREDENTIAL_ENCRYPTION_KEY=your_32_byte_encryption_key_here
 
 # Queue (Optional)
 REDIS_URL=
@@ -308,14 +310,16 @@ Follow these steps to experience the complete InfraFlow AI pipeline:
 
 ## Testing Results
 
-The codebase includes automated unit, integration, route, and end-to-end multi-agent test suites executed via Jest:
+The platform has been rigorously validated across automated backend test suites as well as end-to-end production verification:
+
+### Automated Backend Test Suite
+Executed via Jest across unit, integration, route, and end-to-end multi-agent test suites:
 
 ```bash
 cd server
 npm test
 ```
 
-### Test Suite Summary:
 - **`src/services/geminiService.test.js`:** Tests `@google/genai` integration with mocked client methods.
 - **`src/services/aiService.test.js`:** Tests workflow generation logic and schema enforcement.
 - **`src/routes/aiRoutes.test.js`:** Tests AI REST API endpoints and error handling.
@@ -329,11 +333,19 @@ Snapshots:   0 total
 Time:        4.576 s
 ```
 
+### Production End-to-End Verification
+- **Production Registration & Login:** Verified on live production deployment (`https://infraflow-ai.vercel.app` against Render backend API).
+- **AI Workflow Generation:** Natural language prompt interpretation generates syntactically valid DAG nodes and dependency edges.
+- **Workflow Persistence:** Workflows correctly persist across sessions with full MongoDB Atlas document storage.
+- **Successful Workflow Execution:** Real-time multi-agent execution pipeline runs through Architect, Validation, Execution, and Monitoring phases with streaming ANSI terminal output.
+- **Execution History:** Execution runs, status transitions, duration metrics, and agent logs are recorded and inspectable via the dedicated executions view.
+- **Multi-User Data Isolation:** Verified with secondary user accounts; workflows are correctly partitioned and inaccessible across user accounts.
+
 ---
 
 ## Known Limitations
 
-- **Simulated Provider Operations:** Provider drivers (`awsIntegration`, `githubIntegration`, `dockerIntegration`, `digitaloceanIntegration`, `vercelIntegration`) validate credentials and simulate live deployment steps with realistic streaming outputs for safe offline testing without incurring unintended cloud infrastructure costs.
+- **Simulated Provider Operations:** Provider deployment operations (`awsIntegration`, `githubIntegration`, `dockerIntegration`, `digitaloceanIntegration`, `vercelIntegration`) are currently simulated for safe testing with realistic streaming logs and validation checks unless real provider credentials are configured.
 - **In-Memory Default Database:** If `MONGO_URI` is omitted, the server utilizes `mongodb-memory-server`. In-memory data resets when the Node.js process terminates; set a persistent `MONGO_URI` for production deployments.
 - **Single-Host Socket Scaling:** Socket.IO clustering currently relies on single-process memory adapter; use Redis Socket.IO adapter when scaling across multiple horizontal server instances.
 
